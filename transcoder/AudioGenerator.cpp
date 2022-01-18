@@ -1,6 +1,6 @@
 #include "AudioGenerator.h"
 
-AudioGenerator::AudioGenerator(const StreamParameters& params)
+av::AudioGenerator::AudioGenerator(const StreamParameters& params)
 {
     time_base = params.audio_time_base;
     channels = params.channels;
@@ -39,18 +39,18 @@ AudioGenerator::AudioGenerator(const StreamParameters& params)
         av.ck(swr_init(swr_ctx), CmdTag::SI);
 
     }
-    catch (const std::exception& e) {
+    catch (const Exception& e) {
         std::cerr << "AudioStream::allocateFrame exception: " << e.what() << std::endl;
     }
 }
 
-AudioGenerator::~AudioGenerator()
+av::AudioGenerator::~AudioGenerator()
 {
     av_frame_free(&frame);
     av_frame_free(&tmp);
 }
 
-AVFrame* AudioGenerator::getFrame()
+AVFrame* av::AudioGenerator::getFrame()
 {
     int j, i, v;
     int16_t* q = (int16_t*)frame->data[0];

@@ -81,7 +81,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(CONTRIB_PATH)\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(CONTRIB_PATH)\include;$(CONTRIB_PATH)\include\SDL;$(IncludePath)</IncludePath>
     <LibraryPath>$(CONTRIB_PATH)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -133,36 +133,47 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>-D__STDC_CONSTANT_MACROS %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>libavcodec.lib;libavformat.lib;libavutil.lib;libswresample.lib;libswscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libavcodec.lib;libavdevice.lib;libavfilter.lib;libavformat.lib;libavutil.lib;libpostproc.lib;libswresample.lib;libswscale.lib;libsdl2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Utilities\avexception.cpp" />
     <ClCompile Include="AudioGenerator.cpp" />
+    <ClCompile Include="Exception.cpp" />
+    <ClCompile Include="Clock.cpp" />
     <ClCompile Include="Decoder.cpp" />
+    <ClCompile Include="Display.cpp" />
     <ClCompile Include="Encoder.cpp" />
+    <ClCompile Include="EventLoop.cpp" />
     <ClCompile Include="FileReader.cpp" />
     <ClCompile Include="FileWriter.cpp" />
+    <ClCompile Include="Filter.cpp" />
+    <ClCompile Include="Frame.cpp" />
     <ClCompile Include="RawFileWriter.cpp" />
     <ClCompile Include="StreamParameters.cpp" />
     <ClCompile Include="transcoder.cpp" />
     <ClCompile Include="VideoGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Utilities\avexception.h" />
     <ClInclude Include="AudioGenerator.h" />
+    <ClInclude Include="Exception.h" />
     <ClInclude Include="CircularQueue.h" />
+    <ClInclude Include="Clock.h" />
     <ClInclude Include="Decoder.h" />
+    <ClInclude Include="Display.h" />
     <ClInclude Include="Encoder.h" />
+    <ClInclude Include="EventLoop.h" />
     <ClInclude Include="FileReader.h" />
     <ClInclude Include="FileWriter.h" />
+    <ClInclude Include="Filter.h" />
     <ClInclude Include="Frame.h" />
+    <ClInclude Include="Factory.h" />
     <ClInclude Include="RawFileWriter.h" />
     <ClInclude Include="StreamParameters.h" />
     <ClInclude Include="VideoGenerator.h" />

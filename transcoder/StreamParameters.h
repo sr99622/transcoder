@@ -12,6 +12,9 @@ extern "C"
 #define STREAM_DURATION   10.0
 
 
+namespace av
+{
+
 class StreamParameters
 {
 public:
@@ -57,4 +60,7 @@ public:
 
     AVDictionary* opts = NULL;
 };
+
+}
+
 

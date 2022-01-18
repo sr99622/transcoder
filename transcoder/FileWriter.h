@@ -14,26 +14,32 @@ extern "C" {
 
 #include <mutex>
 
-#include "../Utilities/avexception.h"
+#include "Exception.h"
 
 #include "StreamParameters.h"
+
+namespace av
+{
 
 class FileWriter
 {
 public:
     FileWriter(const StreamParameters& params);
     ~FileWriter();
-    void openFile(const char* filename);
-    void writeFrame(AVPacket* pkt);
-    void closeFile();
+    void open(const char* filename);
+    void write(AVPacket* pkt);
+    void close();
 
     AVFormatContext* fmt_ctx;
     int video_stream_id = AVERROR_STREAM_NOT_FOUND;
     int audio_stream_id = AVERROR_STREAM_NOT_FOUND;
     AVDictionary* opts;
-    AVExceptionHandler av;
+    ExceptionHandler ex;
 
     std::mutex mutex;
 
 };
+
+}
+
 

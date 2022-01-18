@@ -1,11 +1,11 @@
 #include "StreamParameters.h"
 
-StreamParameters::StreamParameters()
+av::StreamParameters::StreamParameters()
 {
 	
 }
 
-StreamParameters::StreamParameters(AVCodecContext* ctx)
+av::StreamParameters::StreamParameters(AVCodecContext* ctx)
 {
 	if (ctx->width > 0 && ctx->height > 0) {
 		readVideoCtx(ctx);
@@ -15,12 +15,12 @@ StreamParameters::StreamParameters(AVCodecContext* ctx)
 	}
 }
 
-StreamParameters::~StreamParameters()
+av::StreamParameters::~StreamParameters()
 {
 	av_dict_free(&opts);
 }
 
-void StreamParameters::readAudioCtx(AVCodecContext* ctx)
+void av::StreamParameters::readAudioCtx(AVCodecContext* ctx)
 {
 	sample_fmt = ctx->sample_fmt;
 	if (ctx->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE)
@@ -35,7 +35,7 @@ void StreamParameters::readAudioCtx(AVCodecContext* ctx)
 	audio_codec_name = avcodec_get_name(ctx->codec_id);
 }
 
-void StreamParameters::readVideoCtx(AVCodecContext* ctx)
+void av::StreamParameters::readVideoCtx(AVCodecContext* ctx)
 {
 	pix_fmt = ctx->pix_fmt;
 	width = ctx->width;
@@ -45,7 +45,7 @@ void StreamParameters::readVideoCtx(AVCodecContext* ctx)
 	video_codec_name = avcodec_get_name(ctx->codec_id);
 }
 
-void StreamParameters::showAvailableOutputFormats()
+void av::StreamParameters::showAvailableOutputFormats()
 {
 	const AVOutputFormat* fmt = NULL;
 	void* i = 0;
@@ -61,7 +61,7 @@ void StreamParameters::showAvailableOutputFormats()
 	}
 }
 
-void StreamParameters::showEncoderProperties(const char* codec_name)
+void av::StreamParameters::showEncoderProperties(const char* codec_name)
 {
 	AVCodec* codec = avcodec_find_encoder_by_name(codec_name);
 	if (!codec) {
@@ -130,7 +130,7 @@ void StreamParameters::showEncoderProperties(const char* codec_name)
 	}
 }
 
-std::string StreamParameters::toString(AVMediaType media_type) const
+std::string av::StreamParameters::toString(AVMediaType media_type) const
 {
 	const char* pix_fmt_name = av_get_pix_fmt_name(pix_fmt);
 	if (!pix_fmt_name) pix_fmt_name = "NULL";

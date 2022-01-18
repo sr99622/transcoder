@@ -5,8 +5,11 @@ extern "C" {
 #include "libavutil/imgutils.h"
 }
 
-#include "../Utilities/avexception.h"
+#include "Exception.h"
 #include "Frame.h"
+
+namespace av
+{
 
 class RawFileWriter
 {
@@ -31,6 +34,8 @@ public:
 	FILE* file;
 	int frame_count = 0;
 
-	AVExceptionHandler av;
+	ExceptionHandler ex;
 };
+
+}
 

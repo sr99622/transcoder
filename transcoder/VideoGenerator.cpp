@@ -1,7 +1,7 @@
 #include "VideoGenerator.h"
 #include "Frame.h"
 
-VideoGenerator::VideoGenerator(const StreamParameters& params)
+av::VideoGenerator::VideoGenerator(const StreamParameters& params)
 {
     this->params = params;
     next_pts = 0;
@@ -11,34 +11,34 @@ VideoGenerator::VideoGenerator(const StreamParameters& params)
     time_base = params.video_time_base;
 
     try {
-        av.ck(frame = av_frame_alloc(), CmdTag::AFA);
+        ex.ck(frame = av_frame_alloc(), CmdTag::AFA);
         frame->format = params.pix_fmt;
         frame->width = params.width;
         frame->height = params.height;
-        av.ck(av_frame_get_buffer(frame, 0), CmdTag::AFGB);
+        ex.ck(av_frame_get_buffer(frame, 0), CmdTag::AFGB);
         //av.ck(av_frame_make_writable(frame), CmdTag::AFMW);
 
-        av.ck(yuv_frame = av_frame_alloc(), CmdTag::AFA);
+        ex.ck(yuv_frame = av_frame_alloc(), CmdTag::AFA);
         yuv_frame->format = AV_PIX_FMT_YUV420P;
         yuv_frame->width = params.width;
         yuv_frame->height = params.height;
-        av.ck(av_frame_get_buffer(yuv_frame, 0), CmdTag::AFGB);
+        ex.ck(av_frame_get_buffer(yuv_frame, 0), CmdTag::AFGB);
         //av.ck(av_frame_make_writable(yuv_frame), CmdTag::AFMW);
 
     }
-    catch (const AVException& e) {
+    catch (const Exception& e) {
         std::cerr << "VideoGenerator constructor exception: " << e.what() << std::endl;
     }
 }
 
-VideoGenerator::~VideoGenerator()
+av::VideoGenerator::~VideoGenerator()
 {
     av_frame_free(&frame);
     av_frame_free(&yuv_frame);
     sws_freeContext(sws_ctx);
 }
 
-void VideoGenerator::fillFrame(AVFrame* pict, int frame_index)
+void av::VideoGenerator::fillFrame(AVFrame* pict, int frame_index)
 {
     int x, y, i;
 
@@ -58,7 +58,7 @@ void VideoGenerator::fillFrame(AVFrame* pict, int frame_index)
     }
 }
 
-AVFrame* VideoGenerator::getFrame()
+AVFrame* av::VideoGenerator::getFrame()
 {
     if (av_compare_ts(next_pts, time_base, STREAM_DURATION, av_make_q(1, 1)) > 0) {
         return NULL;
@@ -67,7 +67,7 @@ AVFrame* VideoGenerator::getFrame()
     try {
         if (pix_fmt != AV_PIX_FMT_YUV420P) {
             if (sws_ctx == NULL) {
-                av.ck(sws_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height,
+                ex.ck(sws_ctx = sws_getContext(width, height, AV_PIX_FMT_YUV420P, width, height,
                     pix_fmt, SWS_BICUBIC, NULL, NULL, NULL), CmdTag::SGC);
                 fillFrame(yuv_frame, next_pts);
                 sws_scale(sws_ctx, (const uint8_t* const*)yuv_frame->data,
@@ -78,7 +78,7 @@ AVFrame* VideoGenerator::getFrame()
             fillFrame(frame, next_pts);
         }
     }
-    catch (const AVException& e) {
+    catch (const Exception& e) {
         std::cerr << "VideoGenerator::getFrame exception: " << e.what() << std::endl;
         return NULL;
     }

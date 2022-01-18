@@ -6,219 +6,254 @@
 #include <thread>
 #include <condition_variable>
 #include <exception>
+#include <functional>
 
-class QueueClosedException : public std::exception {
-public:
-	const char* what() const throw() {
-		return "attempt to access closed queue";
-	}
-};
-
-template <typename T>
-class CircularQueue
+namespace av
 {
-private:
-	std::vector<T> data;
-	int max_size;
-	int front;
-	int rear;
-	std::mutex mutex;
-	std::condition_variable cond_push, cond_pop;
-	bool closed;
-	bool active;
-	int current_size;
 
-public:
-	CircularQueue(size_t max_size);
-	void push(T const&);
-	T pop();
-	void pop(T&);
-	int size();
-	void close();
-	void open();
-	bool isOpen();
-	void flush();
-};
 
-template <typename T>
-CircularQueue<T>::CircularQueue(size_t max_size)
-{
-	this->max_size = max_size;
-	front = -1;
-	rear = -1;
-	data.reserve(max_size);
-	closed = false;
-	active = true;
-	current_size = 0;
-}
+	class QueueClosedException : public std::exception {
+	public:
+		const char* what() const throw() {
+			return "attempt to access closed queue";
+		}
+	};
 
-template <typename T>
-void CircularQueue<T>::push(T const& element)
-{
-	std::unique_lock<std::mutex> lock(mutex);
+	template <typename T>
+	class CircularQueue
+	{
+	public:
+		CircularQueue(size_t max_size);
+		CircularQueue
+		(
+			size_t max_size,
+			const std::string& name,
+			std::function<std::string(T&, int, bool, std::string&)> mntrAction,
+			std::function<void(bool, bool, std::string&)> mntrWait,
+			std::function<void(const std::string&)> msgOut
+		);
 
-	while (current_size == max_size) {
-		// queue full
-		
-		if (closed)
-			break;
+		void push(T const&);
+		T pop();
+		void pop(T&);
+		int size();
+		void close();
+		void open();
+		bool isOpen();
+		void flush();
+		bool isPaused();
+		void pause(bool);
 
-		cond_push.wait(lock);
+	private:
+		std::vector<T> m_data;
+		int m_max_size;
+		int m_front = -1;
+		int m_rear = -1;
+		std::mutex n_mutex;
+		std::condition_variable m_cond_push, m_cond_pop, m_cond_brake;
+		bool m_closed = false;
+		bool m_active = true;
+		bool m_paused = false;
+		int m_size = 0;
+		std::string m_name;
+		std::function<std::string(T&, int, bool, std::string&)> mntrAction = nullptr;
+		std::function<void(bool, bool, std::string&)> mntrWait = nullptr;
+		std::function<void(const std::string&)> msgOut = nullptr;
+
+	};
+
+	template <typename T>
+	CircularQueue<T>::CircularQueue(size_t max_size) : m_max_size(max_size)
+	{
+		m_data.reserve(max_size);
 	}
 
-	if (closed) {
-		QueueClosedException e;
-		throw e;
+	template <typename T>
+	CircularQueue<T>::CircularQueue
+	(
+		size_t max_size,
+		const std::string& name,
+		std::function<std::string(T&, int, bool, std::string&)> mntrAction,
+		std::function<void(bool, bool, std::string&)> mntrWait,
+		std::function<void(const std::string&)> msgOut
+	) :
+		m_max_size(max_size),
+		m_name(name),
+		mntrAction(mntrAction),
+		mntrWait(mntrWait),
+		msgOut(msgOut)
+	{
+		m_data.reserve(max_size);
 	}
 
-	if (front == -1) {
-		front = rear = 0;
-	}
-	else if (rear == max_size - 1 && front != 0) {
-		rear = 0;
-	}
-	else {
-		rear++;
-	}
 
-	if (data.size() < rear + 1)
-		data.push_back(element);
-	else
-		data[rear] = element;
+	template <typename T>
+	void CircularQueue<T>::push(T const& element)
+	{
+		std::unique_lock<std::mutex> lock(n_mutex);
+		if (m_paused) m_cond_brake.wait(lock);
 
-	active = true;
-	current_size++;
-	cond_pop.notify_one();
-}
+		while (m_size == m_max_size) {
+			// queue full
+			if (m_closed) break;
 
-template <typename T>
-T CircularQueue<T>::pop()
-{
-	std::unique_lock<std::mutex> lock(mutex);
-
-	while (front == -1) {
-		// queue empty
-
-		if (!active) {
-			closed = true;
-			cond_pop.notify_all();
+			if (mntrWait) mntrWait(true, true, m_name);
+			m_cond_push.wait(lock);
+			if (mntrWait) mntrWait(false, true, m_name);
 		}
 
-		if (closed) {
-			break;
+		if (m_closed) throw QueueClosedException();
+
+		if (m_front == -1) m_front = m_rear = 0;
+		else if (m_rear == m_max_size - 1 && m_front != 0) m_rear = 0;
+		else m_rear++;
+
+		if (m_data.size() < m_rear + 1)	m_data.push_back(element);
+		else m_data[m_rear] = element;
+		m_size++;
+
+		if (mntrAction) msgOut(mntrAction((T&)element, m_size, true, m_name));
+		m_active = true;
+		m_cond_pop.notify_one();
+	}
+
+	template <typename T>
+	T CircularQueue<T>::pop()
+	{
+		std::unique_lock<std::mutex> lock(n_mutex);
+		if (m_paused) m_cond_brake.wait(lock);
+
+		while (m_front == -1) {
+			// queue empty
+			if (!m_active) {
+				m_closed = true;
+				m_cond_pop.notify_all();
+			}
+
+			if (m_closed) break;
+
+			if (mntrWait) mntrWait(true, false, m_name);
+			m_cond_pop.wait(lock);
+			if (mntrWait) mntrWait(false, false, m_name);
 		}
 
-		cond_pop.wait(lock);
+		if (m_closed) throw QueueClosedException();
+
+		T& result = m_data[m_front];
+		if (m_front == m_rear) m_front = m_rear = -1;
+		else if (m_front == m_max_size - 1) m_front = 0;
+		else m_front++;
+		m_size--;
+
+		if (mntrAction) msgOut(mntrAction((T&)(result), m_size, false, m_name));
+		m_cond_push.notify_one();
+		return result;
 	}
 
-	if (closed) {
-		QueueClosedException e;
-		throw e;
-	}
+	template <typename T>
+	void CircularQueue<T>::pop(T& arg)
+	{
+		std::unique_lock<std::mutex> lock(n_mutex);
+		if (m_paused) m_cond_brake.wait(lock);
 
-	T& result = data[front];
-	if (front == rear) {
-		front = rear = -1;
-	}
-	else if (front == max_size - 1) {
-		front = 0;
-	}
-	else {
-		front++;
-	}
-	cond_push.notify_one();
-	current_size--;
-	return result;
-}
+		while (m_front == -1) {
+			// queue empty
+			if (!m_active) {
+				m_closed = true;
+				m_cond_pop.notify_all();
+			}
 
-template <typename T>
-void CircularQueue<T>::pop(T& arg)
-{
-	std::unique_lock<std::mutex> lock(mutex);
+			if (m_closed)	break;
 
-	while (front == -1) {
-		// queue empty
-
-		if (!active) {
-			closed = true;
-			cond_pop.notify_all();
+			if (mntrWait) mntrWait(true, false, m_name);
+			m_cond_pop.wait(lock);
+			if (mntrWait) mntrWait(false, false, m_name);
 		}
 
-		if (closed) {
-			break;
-		}
+		if (m_closed) throw QueueClosedException();
 
-		cond_pop.wait(lock);
+		arg = m_data[m_front];
+		if (m_front == m_rear) m_front = m_rear = -1;
+		else if (m_front == m_max_size - 1) m_front = 0;
+		else m_front++;
+		m_size--;
+
+		if (mntrAction) msgOut(mntrAction((T&)(arg), m_size, false, m_name));
+		m_cond_push.notify_one();
 	}
 
-	if (closed) {
-		QueueClosedException e;
-		throw e;
+	template <typename T>
+	int CircularQueue<T>::size()
+	{
+		std::lock_guard<std::mutex> lock(n_mutex);
+		return m_size;
 	}
 
-	arg = data[front];
-	if (front == rear) {
-		front = rear = -1;
+	template <typename T>
+	void CircularQueue<T>::close()
+	{
+		std::unique_lock<std::mutex> lock(n_mutex);
+		m_closed = true;
+		m_cond_push.notify_all();
+		m_cond_pop.notify_all();
+		m_cond_brake.notify_all();
 	}
-	else if (front == max_size - 1) {
-		front = 0;
+
+	template <typename T>
+	void CircularQueue<T>::open()
+	{
+		std::unique_lock<std::mutex> lock(n_mutex);
+		m_closed = false;
 	}
-	else {
-		front++;
+
+	template <typename T>
+	bool CircularQueue<T>::isOpen()
+	{
+		std::lock_guard<std::mutex> lock(n_mutex);
+		return !m_closed;
 	}
-	cond_push.notify_one();
-	current_size--;
+
+	template <typename T>
+	void CircularQueue<T>::flush()
+	{
+		std::lock_guard<std::mutex> lock(n_mutex);
+		m_active = false;
+		m_cond_pop.notify_all();
+	}
+
+
+	template <typename T>
+	bool CircularQueue<T>::isPaused()
+	{
+		std::lock_guard<std::mutex> lock(n_mutex);
+		return m_paused;
+	}
+
+	template <typename T>
+	void CircularQueue<T>::pause(bool arg)
+	{
+		std::lock_guard<std::mutex> lock(n_mutex);
+		m_paused = arg;
+		m_cond_brake.notify_all();
+	}
+
 }
 
-template <typename T>
-int CircularQueue<T>::size()
-{
-	std::lock_guard<std::mutex> lock(mutex);
-	return current_size;
-}
 
-template <typename T>
-void CircularQueue<T>::close()
-{
-	std::unique_lock<std::mutex> lock(mutex);
-	closed = true;
-	cond_pop.notify_all();
-}
 
-template <typename T>
-void CircularQueue<T>::open()
-{
-	std::unique_lock<std::mutex> lock(mutex);
-	closed = false;
-}
-
-template <typename T>
-bool CircularQueue<T>::isOpen()
-{
-	std::lock_guard<std::mutex> lock(mutex);
-	return !closed;
-}
-
-template <typename T>
-void CircularQueue<T>::flush()
-{
-	std::lock_guard<std::mutex> lock(mutex);
-	active = false;
-	cond_pop.notify_all();
-}
 
 /*
 template <typename T>
 int CircularQueue<T>::local_size()
 {
-	if (front == -1) {
+	if (m_front == -1) {
 		return 0;
 	}
-	if (rear >= front) {
-		return rear - front + 1;
+	if (m_rear >= m_front) {
+		return m_rear - m_front + 1;
 	}
 	else {
-		return max_size - front + rear + 1;
+		return max_size - m_front + m_rear + 1;
 	}
 }
 */

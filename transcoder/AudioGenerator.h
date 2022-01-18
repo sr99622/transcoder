@@ -3,6 +3,9 @@
 #include "FileWriter.h"
 #include "StreamParameters.h"
 
+namespace av
+{
+
 class AudioGenerator
 {
 public:
@@ -20,7 +23,10 @@ public:
     AVFrame* tmp;
     struct SwrContext* swr_ctx;
     int channels;
-    AVExceptionHandler av;
+    ExceptionHandler av;
 
 };
+
+
+}
 

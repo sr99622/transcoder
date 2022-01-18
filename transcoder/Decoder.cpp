@@ -15,63 +15,103 @@ AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
     return AV_PIX_FMT_NONE;
 }
 
-Decoder::Decoder(AVFormatContext* fmt_ctx, int stream_index, CircularQueue<Frame>* q, AVHWDeviceType type)
+av::Decoder::Decoder
+(
+    AVFormatContext* fmt_ctx, int stream_index,
+    CircularQueue<Frame>* frame_q,
+    std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg,
+    AVHWDeviceType type
+) :
+    frame_q(frame_q)
 {
-    next_pts = 0;
-    next_pts_tb = av_make_q(0, 1);
-    frame_q = q;
+    ex.fnMsgOut = fnMsg;
 
     try {
-        av.ck(frame = av_frame_alloc(), CmdTag::AFA);
-        AVStream* stream = fmt_ctx->streams[stream_index];
-        const AVCodec* dec = NULL;
-        av.ck(dec = avcodec_find_decoder(stream->codecpar->codec_id), std::string("avcodec_find_decoder could not find ") + avcodec_get_name(stream->codecpar->codec_id));
-        av.ck(dec_ctx = avcodec_alloc_context3(dec), CmdTag::AAC3);
-        av.ck(avcodec_parameters_to_context(dec_ctx, stream->codecpar), CmdTag::APTC);
 
+
+
+        stream = fmt_ctx->streams[stream_index];
+        dec = avcodec_find_decoder(stream->codecpar->codec_id);
+
+        ex.msg(streamInfo());
+        
+        if (!dec) 
+            throw Exception(std::string("avcodec_find_decoder could not find ") + avcodec_get_name(stream->codecpar->codec_id));
+
+        ex.ck(dec_ctx = avcodec_alloc_context3(dec), CmdTag::AAC3);
+        ex.ck(avcodec_parameters_to_context(dec_ctx, stream->codecpar), CmdTag::APTC);
+
+        ex.ck(frame = av_frame_alloc(), CmdTag::AFA);
         if (type != AV_HWDEVICE_TYPE_NONE) {
-            av.ck(sw_frame = av_frame_alloc(), CmdTag::AFA);
+            ex.ck(sw_frame = av_frame_alloc(), CmdTag::AFA);
             for (int i = 0;; i++) {
                 const AVCodecHWConfig* config;
-                av.ck(config = avcodec_get_hw_config(dec, i), std::string("Decoder ") + dec->name + std::string(" does not support device type ") + av_hwdevice_get_type_name(type));
+                config = avcodec_get_hw_config(dec, i);
+
+                if (config) {
+                    std::stringstream str;
+                    str << "device type: " << av_hwdevice_get_type_name(type);
+                    ex.msg(str.str());
+                }
+                else {
+                    throw Exception(std::string("Decoder ") + dec->name + std::string(" does not support device type ") + av_hwdevice_get_type_name(type));
+                }
 
                 if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type) {
                     hw_pix_fmt = config->pix_fmt;
                     break;
                 }
             }
-            av.ck(av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0), CmdTag::AHCC);
+            ex.ck(av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0), CmdTag::AHCC);
             dec_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
             dec_ctx->get_format = get_hw_format;
             const char* hw_pix_fmt_name;
-            av.ck(hw_pix_fmt_name = av_get_pix_fmt_name(hw_pix_fmt), CmdTag::AGPFN);
-            std::cout << "using hw pix fmt: " << hw_pix_fmt_name << std::endl;
+            hw_pix_fmt_name = av_get_pix_fmt_name(hw_pix_fmt);
+            ex.msg(hw_pix_fmt_name, MsgPriority::INFO, "using hw pix fmt: ");
+
+            ex.ck(sws_ctx = sws_getContext(dec_ctx->width, dec_ctx->height, AV_PIX_FMT_NV12,
+                dec_ctx->width, dec_ctx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL), CmdTag::SGC);
+
+            cvt_frame = av_frame_alloc();
+            cvt_frame->width = dec_ctx->width;
+            cvt_frame->height = dec_ctx->height;
+            cvt_frame->format = AV_PIX_FMT_YUV420P;
+            av_frame_get_buffer(cvt_frame, 0);
         }
 
-        av.ck(avcodec_open2(dec_ctx, dec, NULL), CmdTag::AO2);
+        ex.ck(avcodec_open2(dec_ctx, dec, NULL), CmdTag::AO2);
+
     }
-    catch (const AVException& e) {
-        std::cout << "Decoder constructor exception: " << e.what() << std::endl;
+    catch (const Exception& e) {
+        ex.msg(e.what(), MsgPriority::CRITICAL, "Decoder constructor exception: ");
+        close();
     }
 }
 
-Decoder::~Decoder()
+av::Decoder::~Decoder()
 {
-    av_frame_unref(frame);
-    if (sw_frame)
-        av_frame_unref(sw_frame);
+    close();
+}
+
+void av::Decoder::close()
+{
+    av_frame_free(&frame);
+    av_frame_free(&sw_frame);
+    av_frame_free(&cvt_frame);
     avcodec_free_context(&dec_ctx);
     av_buffer_unref(&hw_device_ctx);
 }
 
-int Decoder::decode_packet(AVPacket* pkt)
+int av::Decoder::decode(AVPacket* pkt)
 {
-    bool dbg = true;
-
     int ret = 0;
 
     try {
-        av.ck(ret = avcodec_send_packet(dec_ctx, pkt), CmdTag::ASP);
+        if (!pkt) ex.msg("decoder received NULL pkt eof", MsgPriority::INFO);
+
+        if (!dec_ctx) throw Exception("dec_ctx null");
+
+        ex.ck(ret = avcodec_send_packet(dec_ctx, pkt), CmdTag::ASP);
 
         while (ret >= 0) {
             ret = avcodec_receive_frame(dec_ctx, frame);
@@ -80,112 +120,45 @@ int Decoder::decode_packet(AVPacket* pkt)
                     return 0;
                 }
                 else if (ret < 0) {
-                    throw AVException("error during decoding");
+                    ex.ck(ret, "error during decoding");
                 }
             }
 
+            Frame tmp;
             if (frame->format == hw_pix_fmt) {
-                av.ck(ret = av_hwframe_transfer_data(sw_frame, frame, 0), CmdTag::AHTD);
-                av.ck(av_frame_copy_props(sw_frame, frame));
-                tmp.frame = sw_frame;
+                ex.ck(ret = av_hwframe_transfer_data(sw_frame, frame, 0), CmdTag::AHTD);
+                ex.ck(av_frame_copy_props(sw_frame, frame));
+                ex.ck(sws_scale(sws_ctx, sw_frame->data, sw_frame->linesize, 0, dec_ctx->height, 
+                    cvt_frame->data, cvt_frame->linesize), CmdTag::SS);
+                cvt_frame->pts = sw_frame->pts;
+                tmp = Frame(cvt_frame);
             }
             else {
-                tmp.frame = frame;
+                tmp = Frame(frame);
             }
 
-            if (dbg) {
-                switch (dec_ctx->codec_type) {
-                case AVMEDIA_TYPE_VIDEO:
-                    std::cout << "decoded frame pts: " << tmp.frame->pts << std::endl;
-                    break;
-
-                case AVMEDIA_TYPE_AUDIO:
-                    //std::cout << "audio decode_packet pts: " << tmp.frame->pts << std::endl;
-                    break;
-                }
-            }
-
+            //int size = dec_ctx->gop_size;
+            tmp.set_rts(stream);
             frame_q->push(tmp);
         }
     }
-    catch (const AVException& e) {
-        std::cout << "Decoder::decode_packet exception: " << e.what() << std::endl;
+    catch (const Exception& e) {
+        ex.msg(e.what(), MsgPriority::CRITICAL, "Decoder::decode exception: ");
+        ret = -1;
     }
 
     return ret;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void Decoder::adjust_pts(AVFrame* frame)
+std::string av::Decoder::streamInfo()
 {
-    switch (dec_ctx->codec_type) {
-
-    case AVMEDIA_TYPE_VIDEO:
-        //std::cout << "Decoder::adjust_pts initial video value " << frame->pts << std::endl;
-        //frame->pts = frame->pkt_dts;
-        //std::cout << "Decoder::adjust_pts video value " << frame->pts << std::endl;
-        break;
-
-    case AVMEDIA_TYPE_AUDIO:
-        //std::cout << "Decoder::adjust_pts initial audio value " << frame->pts << std::endl;
-        /*
-        AVRational tb = av_make_q(1, frame->sample_rate);
-
-        if (frame->pts != AV_NOPTS_VALUE) {
-            frame->pts = av_rescale_q(frame->pts, dec_ctx->pkt_timebase, tb);
-        }
-        else if (next_pts != AV_NOPTS_VALUE) {
-            frame->pts = av_rescale_q(next_pts, next_pts_tb, tb);
-        }
-
-        if (frame->pts != AV_NOPTS_VALUE) {
-            next_pts = frame->pts + frame->nb_samples;
-            next_pts_tb = tb;
-        }
-        */
-        //std::cout << "Decoder::adjust_pts audio value " << frame->pts << std::endl;
-        break;
+    std::stringstream str;
+    if (stream) {
+        str << "codec name: " << avcodec_get_name(stream->codecpar->codec_id);
     }
+    return str.str();
 }
 
-void Decoder::flush()
+std::string av::Decoder::hardwareInfo()
 {
-    decode_packet(NULL);
-    avcodec_flush_buffers(dec_ctx);
-    frame_q->flush();
 }

@@ -3,6 +3,9 @@
 #include "FileWriter.h"
 #include "StreamParameters.h"
 
+namespace av
+{
+
 class VideoGenerator
 {
 public:
@@ -20,6 +23,9 @@ public:
     AVFrame* frame;
     StreamParameters params;
     AVFrame* yuv_frame;
-    AVExceptionHandler av;
+    ExceptionHandler ex;
 };
+
+}
+
 
