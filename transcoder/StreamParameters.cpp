@@ -42,6 +42,7 @@ void av::StreamParameters::readVideoCtx(AVCodecContext* ctx)
 	height = ctx->height;
 	video_bit_rate = ctx->bit_rate;
 	video_time_base = ctx->time_base;
+	frame_rate = av_q2d(av_inv_q(video_time_base));
 	video_codec_name = avcodec_get_name(ctx->codec_id);
 }
 

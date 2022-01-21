@@ -21,7 +21,22 @@ av::EventLoopState av::EventLoop::loop()
 				return EventLoopState::PAUSE;
 			}
 		}
+		else if (event.type == SDL_MOUSEMOTION) {
+			Sint32 x = event.button.x;
+			Sint32 y = event.button.y;
+			if (event.motion.state & SDL_BUTTON_LMASK) {
+				std::cout << " x: " << x << " y: " << y << std::endl;
+			}
+		}
+		else if (event.type == SDL_MOUSEBUTTONUP) {
+			Sint32 x = event.button.x;
+			Sint32 y = event.button.y;
+			if (event.button.button == SDL_BUTTON_RIGHT && event.button.state == SDL_RELEASED) {
+				std::cout << " x: " << x << " y: " << y << std::endl;
+			}
+		}
 		//SDL_Delay(1);
+		last_event = event;
 	}
 	return EventLoopState::PLAY;
 }

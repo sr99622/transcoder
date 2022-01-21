@@ -27,6 +27,9 @@ av::FileReader::~FileReader()
 
 AVPacket* av::FileReader::read()
 {
+    if (closed)
+        return NULL;
+
     int ret = 0;
     AVPacket* pkt = av_packet_alloc();
 
@@ -40,6 +43,7 @@ AVPacket* av::FileReader::read()
             ex.msg(e.what(), MsgPriority::CRITICAL, "FileReader::read_packet exception: ");
 
         av_packet_free(&pkt);
+        closed = true;
     }
 
     return pkt;

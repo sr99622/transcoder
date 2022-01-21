@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Exception.h"
+#include <opencv2/opencv.hpp>
+#include "yolo_v2_class.hpp"
 
 namespace av
 {
@@ -18,13 +20,17 @@ public:
 	AVFrame* copyFrame(AVFrame* src);
 	bool isValid() const { return m_frame ? true : false; }
 	void invalidate();
-	AVMediaType mediaType();
+	AVMediaType mediaType() const;
 	uint64_t pts() { return m_frame ? m_frame->pts : AV_NOPTS_VALUE; }
-	void set_rts(AVStream* stream);  // callback from Decoder::decode
-	std::string description();
+	void set_rts(AVStream* stream);  // called from Decoder::decode
+	void set_pts(AVStream* stream);  // called from Encoder::encode
+	std::string description() const;
+	cv::Mat mat();
+	void drawBox(bbox_t box);
 
 	AVFrame* m_frame = NULL;
 	uint64_t m_rts;
+	std::vector<bbox_t> detections;
 	bool show = false;
 
 };

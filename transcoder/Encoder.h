@@ -14,7 +14,7 @@ extern "C" {
 
 #include "Exception.h"
 #include "StreamParameters.h"
-#include "CircularQueue.h"
+#include "Queue.h"
 #include "Frame.h"
 
 namespace av
@@ -23,11 +23,11 @@ namespace av
 class Encoder
 {
 public:
-    Encoder(void* parent, const StreamParameters& params, CircularQueue<AVPacket*>* pkt_q, AVMediaType media_type);
+    Encoder(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q, AVMediaType media_type);
     ~Encoder();
-    void openVideoStream(void* parent, const StreamParameters& params, CircularQueue<AVPacket*>* pkt_q);
-    void openAudioStream(void* parent, const StreamParameters& params, CircularQueue<AVPacket*>* pkt_q);
-    int encode(const Frame& frame);
+    void openVideoStream(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q);
+    void openAudioStream(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q);
+    int encode(Frame& f);
     int encode(AVFrame* frame);
     void close();
 
@@ -43,7 +43,7 @@ public:
     AVBufferRef* hw_device_ctx = NULL;
     AVFrame* hw_frame = NULL;
 
-    CircularQueue<AVPacket*>* pkt_q;
+    Queue<AVPacket*>* pkt_q;
 
     ExceptionHandler ex;
 };

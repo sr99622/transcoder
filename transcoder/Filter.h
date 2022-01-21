@@ -14,7 +14,7 @@ namespace av
 class Filter
 {
 public:
-	Filter(const Decoder& decoder, const char* description, CircularQueue<Frame>* frame_out_q);
+	Filter(const Decoder& decoder, const char* description, Queue<Frame>* frame_out_q);
 	~Filter();
 
 	int filter(const Frame& f);
@@ -25,7 +25,7 @@ public:
 	AVFrame* frame;
 	Frame tmp;
 	AVStream* stream;
-	CircularQueue<Frame>* frame_out_q;
+	Queue<Frame>* frame_out_q;
 	ExceptionHandler ex;
 
 };

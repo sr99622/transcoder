@@ -15,6 +15,7 @@ public:
 	AVFormatContext* fmt_ctx;
 	int video_stream_index = -1;
 	int audio_stream_index = -1;
+	bool closed = false;
 
 	ExceptionHandler ex;
 };

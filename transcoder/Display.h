@@ -3,7 +3,7 @@
 #include <SDL.h>
 #include <chrono>
 #include "Exception.h"
-#include "CircularQueue.h"
+#include "Queue.h"
 #include "Frame.h"
 #include "EventLoop.h"
 #include "Clock.h"
@@ -20,8 +20,8 @@ public:
     (
         const Decoder& videoDecoder, const Decoder& audioDecoder, 
         std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg = nullptr,
-        CircularQueue<Frame>* video_in_q = nullptr, CircularQueue<Frame>* audio_in_q = nullptr,
-        CircularQueue<Frame>* video_out_q = nullptr, CircularQueue<Frame>* audio_out_q = nullptr
+        Queue<Frame>* video_in_q = nullptr, Queue<Frame>* audio_in_q = nullptr,
+        Queue<Frame>* video_out_q = nullptr, Queue<Frame>* audio_out_q = nullptr
     );
 
     ~Display();
@@ -30,6 +30,7 @@ public:
     int initAudio(int sample_rate, AVSampleFormat sample_fmt, int channels, uint64_t channel_layout, int frame_size);
     int initVideo(int width, int height, AVPixelFormat pix_fmt);
     static void AudioCallback(void* userdata, uint8_t* stream, int len);
+    void handleEvent(const SDL_Event& e, Frame& f);
     bool display();
     void close();
 
@@ -45,10 +46,10 @@ public:
     SDL_AudioSpec want = { 0 };
     SDL_AudioSpec have = { 0 };
 
-    CircularQueue<Frame>* video_in_q = nullptr;
-    CircularQueue<Frame>* video_out_q = nullptr;
-    CircularQueue<Frame>* audio_in_q = nullptr;
-    CircularQueue<Frame>* audio_out_q = nullptr;
+    Queue<Frame>* video_in_q = nullptr;
+    Queue<Frame>* video_out_q = nullptr;
+    Queue<Frame>* audio_in_q = nullptr;
+    Queue<Frame>* audio_out_q = nullptr;
 
     av::EventLoop eventLoop;
 
@@ -66,6 +67,9 @@ public:
     unsigned int audioBufIndex = 0;
     int padding = 0;
     int dataSize = 0;
+
+    uint64_t start_time;
+    uint64_t duration;
 
     ExceptionHandler ex;
 };

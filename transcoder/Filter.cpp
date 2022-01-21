@@ -1,6 +1,6 @@
 #include "Filter.h"
 
-av::Filter::Filter(const Decoder& decoder, const char* description, CircularQueue<Frame>* frame_out_q) : frame_out_q(frame_out_q)
+av::Filter::Filter(const Decoder& decoder, const char* description, Queue<Frame>* frame_out_q) : frame_out_q(frame_out_q)
 {
     char args[512];
     int ret = 0;

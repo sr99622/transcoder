@@ -81,7 +81,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(CONTRIB_PATH)\include;$(CONTRIB_PATH)\include\SDL;$(IncludePath)</IncludePath>
+    <IncludePath>$(CONTRIB_PATH)\include;$(CONTRIB_PATH)\include\SDL;$(CONTRIB_PATH)\include\darknet;$(IncludePath)</IncludePath>
     <LibraryPath>$(CONTRIB_PATH)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -140,11 +140,11 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>libavcodec.lib;libavdevice.lib;libavfilter.lib;libavformat.lib;libavutil.lib;libpostproc.lib;libswresample.lib;libswscale.lib;libsdl2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libavcodec.lib;libavdevice.lib;libavfilter.lib;libavformat.lib;libavutil.lib;libpostproc.lib;libswresample.lib;libswscale.lib;libsdl2.lib;opencv_world451.lib;darknet.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AudioGenerator.cpp" />
+    <ClCompile Include="Darknet.cpp" />
     <ClCompile Include="Exception.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="Decoder.cpp" />
@@ -155,15 +155,13 @@
     <ClCompile Include="FileWriter.cpp" />
     <ClCompile Include="Filter.cpp" />
     <ClCompile Include="Frame.cpp" />
-    <ClCompile Include="RawFileWriter.cpp" />
     <ClCompile Include="StreamParameters.cpp" />
     <ClCompile Include="transcoder.cpp" />
-    <ClCompile Include="VideoGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AudioGenerator.h" />
+    <ClInclude Include="Darknet.h" />
     <ClInclude Include="Exception.h" />
-    <ClInclude Include="CircularQueue.h" />
+    <ClInclude Include="Queue.h" />
     <ClInclude Include="Clock.h" />
     <ClInclude Include="Decoder.h" />
     <ClInclude Include="Display.h" />
@@ -174,9 +172,7 @@
     <ClInclude Include="Filter.h" />
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Factory.h" />
-    <ClInclude Include="RawFileWriter.h" />
     <ClInclude Include="StreamParameters.h" />
-    <ClInclude Include="VideoGenerator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

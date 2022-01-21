@@ -1,30 +1,32 @@
 #pragma once
 
+#include <mutex>
+#include <sstream>
+
 #include "FileReader.h"
 #include "Decoder.h"
 #include "Encoder.h"
 #include "Filter.h"
-#include "CircularQueue.h"
+#include "Queue.h"
 #include "FileWriter.h"
-#include "AudioGenerator.h"
-#include "VideoGenerator.h"
-#include "CircularQueue.h"
+#include "Queue.h"
+#include "Darknet.h"
 
 #define SDL_MAIN_HANDLED
 
 #include <SDL.h>
-#include <mutex>
-#include <sstream>
 
+#include "Display.h"
 #include "Frame.h"
 #include "EventLoop.h"
 #include "Exception.h"
 
 std::mutex m_mutex;
-av::ExceptionHandler ex;
 
 namespace av
 {
+
+ExceptionHandler ex;
 
 class Factory
 {
@@ -55,7 +57,7 @@ public:
         msgOut(str.str());
     }
 
-    static void mux(CircularQueue<Frame>* video_q, CircularQueue<Frame>* audio_q, CircularQueue<Frame>* interleaved_q)
+    static void mux(Queue<Frame>* video_q, Queue<Frame>* audio_q, Queue<Frame>* interleaved_q)
     {
         bool capturingVideo = true;
         bool capturingAudio = true;
@@ -121,7 +123,7 @@ public:
         interleaved_q->push(Frame(nullptr));
     }
 
-    static void encode(Encoder* encoder, CircularQueue<Frame>* frame_q)
+    static void encode(Encoder* encoder, Queue<Frame>* frame_q)
     {
         try {
             Frame frame;
@@ -138,7 +140,7 @@ public:
         msg("encode loop end");
     }
 
-    static void pkt_drain(CircularQueue<AVPacket*>* pkt_q)
+    static void pkt_drain(Queue<AVPacket*>* pkt_q)
     {
         try {
             while (true)
@@ -158,7 +160,7 @@ public:
         msg("pkt drain loop end");
     }
 
-    static void drain(CircularQueue<Frame>* frame_q)
+    static void drain(Queue<Frame>* frame_q)
     {
         try {
             Frame frame;
@@ -173,7 +175,7 @@ public:
         msg("drain loop end");
     }
 
-    static void write(FileWriter* writer, CircularQueue<AVPacket*>* pkt_q)
+    static void write(FileWriter* writer, Queue<AVPacket*>* pkt_q)
     {
         try {
             while (AVPacket* pkt = pkt_q->pop())
@@ -187,7 +189,7 @@ public:
         msg("write loop end");
     }
 
-    static void read(FileReader* reader, CircularQueue<AVPacket*>* video_pkt_q, CircularQueue<AVPacket*>* audio_pkt_q)
+    static void read(FileReader* reader, Queue<AVPacket*>* video_pkt_q, Queue<AVPacket*>* audio_pkt_q)
     {
         try {
             while (AVPacket* pkt = reader->read())
@@ -207,7 +209,7 @@ public:
         msg("read loop end");
     }
 
-    static void decode(Decoder* decoder, CircularQueue<AVPacket*>* pkt_q)
+    static void decode(Decoder* decoder, Queue<AVPacket*>* pkt_q)
     {
         try {
             while (AVPacket* pkt = pkt_q->pop())
@@ -225,21 +227,46 @@ public:
         msg("decode loop end");
     }
 
-    static void filter(Filter* filter, CircularQueue<Frame>* frame_q)
+    static void filter(Filter* filter, Queue<Frame>* frame_q)
     {
         try {
-            Frame frame;
+            Frame f;
             while (true)
             {
-                frame_q->pop(frame);
-                filter->filter(frame);
-                if (!frame.isValid())
+                frame_q->pop(f);
+                filter->filter(f);
+                if (!f.isValid())
                     break;
             }
             filter->frame_out_q->push(Frame(nullptr));
         }
         catch (const QueueClosedException& e) {}
         msg("filter loop end");
+    }
+
+    static void detect(Darknet* detector, Queue<Frame>* frame_q)
+    {
+        try {
+            Frame f;
+            while (true)
+            {
+                frame_q->pop(f);
+                if (f.isValid()) {
+                    detector->detect(&f);
+                    std::cout << "size: " << f.detections.size() << std::endl;
+                    for (int i = 0; i < f.detections.size(); i++)
+                        f.drawBox(f.detections[i]);
+
+                    detector->frame_out_q->push(f);
+                }
+                else {
+                    detector->frame_out_q->push(Frame(nullptr));
+                    break;
+                }
+            }
+        }
+        catch (const QueueClosedException& e) {}
+        msg("detect loop end");
     }
 };
 

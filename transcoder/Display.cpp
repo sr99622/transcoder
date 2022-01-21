@@ -4,8 +4,8 @@ av::Display::Display
 (
     const Decoder& videoDecoder, const Decoder& audioDecoder,
     std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg,
-    CircularQueue<Frame>* video_in_q, CircularQueue<Frame>* audio_in_q,
-    CircularQueue<Frame>* video_out_q, CircularQueue<Frame>* audio_out_q
+    Queue<Frame>* video_in_q, Queue<Frame>* audio_in_q,
+    Queue<Frame>* video_out_q, Queue<Frame>* audio_out_q
 ) :
     video_in_q(video_in_q),
     audio_in_q(audio_in_q),
@@ -73,8 +73,14 @@ int av::Display::initVideo(int width, int height, AVPixelFormat pix_fmt)
         case AV_PIX_FMT_RGB24:
             sdl_format = SDL_PIXELFORMAT_RGB24;
             break;
+        case AV_PIX_FMT_RGBA:
+            sdl_format = SDL_PIXELFORMAT_RGBA32;
+            break;
         case AV_PIX_FMT_BGR24:
             sdl_format = SDL_PIXELFORMAT_BGR24;
+            break;
+        case AV_PIX_FMT_BGRA:
+            sdl_format = SDL_PIXELFORMAT_BGRA32;
             break;
         default:
             throw Exception("unsupported pix fmt");
@@ -86,7 +92,6 @@ int av::Display::initVideo(int width, int height, AVPixelFormat pix_fmt)
         }
 
         if (!window) {
-
             const char* pix_fmt_name = av_get_pix_fmt_name(pix_fmt);
             std::stringstream str;
             str << "initializing video display | width: " << width << " height: " << height
@@ -137,6 +142,10 @@ void av::Display::init(const Decoder& videoDecoder, const Decoder& audioDecoder)
     if (!audio_in_q) audio_in_q = audioDecoder.frame_q;
 
     try {
+        double factor = av_q2d(videoDecoder.stream->time_base);
+        std::cout << "time base " << videoDecoder.stream->time_base.num << " / " << videoDecoder.stream->time_base.den << std::endl;
+        start_time = videoDecoder.stream->start_time * factor * 1000;
+        duration = videoDecoder.stream->duration * factor * 1000;
         ex.ck(initAudio(a->sample_rate, a->sample_fmt, a->channels, a->channel_layout, a->frame_size));
         //ex.ck(initVideo(v->width, v->height, v->pix_fmt));
     }
@@ -222,8 +231,7 @@ bool av::Display::display()
             if (video_out_q) video_out_q->push(f);
 
             if (f.isValid()) {
-
-                //std::cout << f.description() << std::endl;
+                handleEvent(eventLoop.last_event, f);
                 ex.ck(initVideo(f.m_frame->width, f.m_frame->height, (AVPixelFormat)f.m_frame->format), "initVideo");
 
                 if (f.m_frame->format == AV_PIX_FMT_YUV420P) {
@@ -319,4 +327,70 @@ void av::Display::AudioCallback(void* userdata, uint8_t* stream, int len)
         }
     }
     catch (const QueueClosedException& e) { }
+}
+
+void av::Display::handleEvent(const SDL_Event& e, Frame& f) {
+    if (e.type == SDL_MOUSEMOTION) {
+
+        cv::Mat mat = f.mat();
+        if (!mat.empty()) {
+            cv::Mat menu = mat.clone();
+            float menu_height = 0.15;
+            for (int i = menu.rows * (1 - menu_height); i < menu.rows; i++) {
+                cv::Mat r = menu.row(i);
+                r = cv::Scalar(0, 0, 0);
+            }
+
+            SDL_Event e = eventLoop.last_event;
+            Sint32 mouse_x = e.motion.x;
+            Sint32 mouse_y = e.motion.y;
+
+            cv::Mat matPlay = cv::imread("../../data/play.png");
+            int x_offset = 100;
+            int y_offset = menu.rows * (1 - menu_height) + 20;
+            int x_end = x_offset + matPlay.cols;
+            int y_end = y_offset + matPlay.rows;
+
+
+            cv::Scalar bar_color(178, 178, 178);
+            cv::Scalar elapsed_color(178, 178, 0);
+            int start_x = menu.cols * 0.1;
+            int end_x = menu.cols * 0.9;
+            float pctg_elapsed = f.m_rts / (float)duration;
+            int elapsed_x = (end_x - start_x) * pctg_elapsed + start_x;
+            int loc_y = menu.rows * 0.95;
+            int bar_width = 5;
+            int bar_lo = loc_y - bar_width / 2.0f - 4;
+            int bar_hi = loc_y + bar_width / 2.0f + 4;
+
+            if (mouse_x > start_x &&
+                mouse_x < end_x   &&
+                mouse_y < bar_hi  &&
+                mouse_y > bar_lo)
+            {
+                bar_color = cv::Scalar(255, 255, 255);
+                elapsed_color = cv::Scalar(255, 255, 0);
+            }
+
+            cv::Point bar_start(start_x, loc_y);
+            cv::Point bar_end(end_x, loc_y);
+            cv::Point elapsed(elapsed_x, loc_y);
+            cv::line(menu, bar_start, bar_end, bar_color, bar_width);
+            cv::line(menu, bar_start, elapsed, elapsed_color, bar_width);
+            int base = 0;
+            auto font = cv::FONT_HERSHEY_SIMPLEX;
+            float font_size = 0.5f;
+            cv::String str_elapsed = std::to_string(f.m_rts);
+            cv::Size text_size = cv::getTextSize(str_elapsed, font, font_size, 1, &base);
+
+            int text_x = start_x - text_size.width - 10;
+            int text_y = loc_y + text_size.height / 2.0f;
+
+            cv::putText(menu, std::to_string(f.m_rts), cv::Point(text_x, text_y),
+                font, font_size, bar_color, 1);
+            
+            float alpha = 0.5;
+            cv::addWeighted(menu, alpha, mat, 1 - alpha, 0, mat);
+        }
+    }
 }

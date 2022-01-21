@@ -18,7 +18,7 @@ AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
 av::Decoder::Decoder
 (
     AVFormatContext* fmt_ctx, int stream_index,
-    CircularQueue<Frame>* frame_q,
+    Queue<Frame>* frame_q,
     std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg,
     AVHWDeviceType type
 ) :

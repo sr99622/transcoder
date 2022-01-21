@@ -1,7 +1,7 @@
 #include "Encoder.h"
 #include "FileWriter.h"
 
-av::Encoder::Encoder(void* parent, const StreamParameters& params, CircularQueue<AVPacket*>* pkt_q, AVMediaType media_type)
+av::Encoder::Encoder(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q, AVMediaType media_type)
 {
     this->media_type = media_type;
     switch (media_type) {
@@ -23,13 +23,13 @@ av::Encoder::~Encoder()
 
 void av::Encoder::close()
 {
-    if (enc_ctx) avcodec_free_context(&enc_ctx);
-    if (pkt) av_packet_free(&pkt);
-    if (hw_frame) av_frame_free(&hw_frame);
+    if (enc_ctx)       avcodec_free_context(&enc_ctx);
+    if (pkt)           av_packet_free(&pkt);
+    if (hw_frame)      av_frame_free(&hw_frame);
     if (hw_device_ctx) av_buffer_unref(&hw_device_ctx);
 }
 
-void av::Encoder::openVideoStream(void* parent, const StreamParameters & params, CircularQueue<AVPacket*>*pkt_q)
+void av::Encoder::openVideoStream(void* parent, const StreamParameters & params, Queue<AVPacket*>*pkt_q)
 {
     this->parent = parent;
     this->pkt_q = pkt_q;
@@ -103,7 +103,7 @@ void av::Encoder::openVideoStream(void* parent, const StreamParameters & params,
     }
 }
 
-void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, CircularQueue<AVPacket*>* pkt_q)
+void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q)
 {
     this->parent = parent;
     this->pkt_q = pkt_q;
@@ -114,7 +114,12 @@ void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, 
     try {
         AVCodec* codec;
         codec = avcodec_find_encoder(codec_id);
-        if (!codec) throw Exception(std::string("avcodec_find_decoder could not find ") + avcodec_get_name(codec_id));
+
+        if (codec)
+            ex.msg(std::string("Encoder opened audio stream codec ") + codec->long_name);
+        else
+            throw Exception(std::string("avcodec_find_decoder could not find ") + avcodec_get_name(codec_id));
+
         ex.ck(pkt = av_packet_alloc(), CmdTag::APA);
         ex.ck(stream = avformat_new_stream(fmt_ctx, NULL), CmdTag::ANS);
         stream->id = fmt_ctx->nb_streams - 1;
@@ -126,6 +131,7 @@ void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, 
         enc_ctx->sample_rate = params.sample_rate;
         enc_ctx->channel_layout = params.channel_layout;
         enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
+        //enc_ctx->frame_size = params.nb_samples; // ???
         stream->time_base = av_make_q(1, enc_ctx->sample_rate);
 
         if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
@@ -145,9 +151,12 @@ void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, 
     }
 }
 
-int av::Encoder::encode(const Frame& frame)
+int av::Encoder::encode(Frame& f)
 {
-    return encode(frame.m_frame);
+    f.set_pts(stream);
+    //std::cout << f.description() << std::endl;
+
+    return encode(f.m_frame);
 }
 
 int av::Encoder::encode(AVFrame* frame)
@@ -180,6 +189,7 @@ int av::Encoder::encode(AVFrame* frame)
             pkt->stream_index = stream->index;
 
             AVPacket* tmp = av_packet_alloc();
+
             tmp = av_packet_clone(pkt);
             pkt_q->push(tmp);
         }

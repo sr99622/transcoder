@@ -1,8 +1,7 @@
 #pragma once
 
 #include "Exception.h"
-#include "RawFileWriter.h"
-#include "CircularQueue.h"
+#include "Queue.h"
 #include "Frame.h"
 
 namespace av
@@ -12,7 +11,7 @@ class Decoder
 {
 public:
 	Decoder(AVFormatContext* fmt_ctx, int stream_index,
-		CircularQueue<Frame>* frame_q,
+		Queue<Frame>* frame_q,
 		std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg = nullptr,
 		AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE);
 
@@ -33,7 +32,7 @@ public:
 	AVBufferRef* hw_device_ctx = NULL;
 	SwsContext* sws_ctx = NULL;
 
-	CircularQueue<Frame>* frame_q;
+	Queue<Frame>* frame_q;
 
 	ExceptionHandler ex;
 };

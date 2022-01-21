@@ -45,6 +45,7 @@ av::Frame& av::Frame::operator=(const Frame& other)
 		m_rts = other.m_rts;
 		av_frame_free(&m_frame);
 		m_frame = av_frame_clone(other.m_frame);
+		av_frame_make_writable(m_frame);
 	}
 	else {
 		invalidate();
@@ -61,6 +62,7 @@ av::Frame& av::Frame::operator=(Frame&& other) noexcept
 		m_rts = other.m_rts;
 		av_frame_free(&m_frame);
 		m_frame = other.m_frame;
+		av_frame_make_writable(m_frame);
 		other.m_frame = NULL;
 	}
 	else {
@@ -77,6 +79,20 @@ void av::Frame::invalidate()
 	m_rts = 0;
 }
 
+cv::Mat av::Frame::mat()
+{
+	cv::Mat mat;
+	switch (m_frame->format) {
+	case AV_PIX_FMT_BGR24:
+		mat = cv::Mat(m_frame->height, m_frame->width, CV_8UC3, m_frame->data[0], m_frame->linesize[0]);
+		break;
+	case AV_PIX_FMT_BGRA:
+		mat = cv::Mat(m_frame->height, m_frame->width, CV_8UC4, m_frame->data[0], m_frame->linesize[0]);
+		break;
+	}
+
+	return mat;
+}
 
 AVFrame* av::Frame::copyFrame(AVFrame* src)
 {
@@ -98,7 +114,15 @@ AVFrame* av::Frame::copyFrame(AVFrame* src)
 	return dst;
 }
 
-AVMediaType av::Frame::mediaType()
+void av::Frame::drawBox(bbox_t box)
+{
+	cv::Mat tmp = mat();
+	cv::Rect rect(box.x, box.y, box.w, box.h);
+	cv::Scalar color(0, 255, 0);
+	cv::rectangle(tmp, rect, color, 1);
+}
+
+AVMediaType av::Frame::mediaType() const
 {
 	AVMediaType result = AVMEDIA_TYPE_UNKNOWN;
 	if (isValid()) {
@@ -110,19 +134,21 @@ AVMediaType av::Frame::mediaType()
 	return result;
 }
 
-std::string av::Frame::description()
+std::string av::Frame::description() const
 {
 	std::stringstream str;
 	if (isValid()) {
 		if (mediaType() == AVMEDIA_TYPE_VIDEO) {
 			const char* pix_fmt_name = av_get_pix_fmt_name((AVPixelFormat)m_frame->format);
 			str << "type: VIDEO width: " << m_frame->width << " height: " << m_frame->height
-				<< " format: " << pix_fmt_name ? pix_fmt_name : "unknown pixel format";
+				<< " format: " << (pix_fmt_name ? pix_fmt_name : "unknown pixel format")
+				<< " pts: " << m_frame->pts << " m_rts: " << m_rts;
 		}
 		else if (mediaType() == AVMEDIA_TYPE_AUDIO) {
 			const char* sample_fmt_name = av_get_sample_fmt_name((AVSampleFormat)m_frame->format);
 			str << "type: AUDIO nb_samples: " << m_frame->nb_samples << " channels: " << m_frame->channels
-				<< " format: " << sample_fmt_name ? sample_fmt_name : "unknown sample format";
+				<< " format: " << (sample_fmt_name ? sample_fmt_name : "unknown sample format")
+				<< " pts: " << m_frame->pts << " m_rts: " << m_rts;
 		}
 		else {
 			str << "UNKNOWN MEDIA TYPE";
@@ -140,6 +166,14 @@ void av::Frame::set_rts(AVStream* stream)
 	if (isValid()) {
 		double factor = 1000 * av_q2d(stream->time_base);
 		m_rts = (pts() - stream->start_time) * factor;
+	}
+}
+
+void av::Frame::set_pts(AVStream* stream)
+{
+	if (isValid()) {
+		double factor = av_q2d(stream->time_base);
+		m_frame->pts = m_rts / factor / 1000;
 	}
 }
 

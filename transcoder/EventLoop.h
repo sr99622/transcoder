@@ -29,6 +29,8 @@ class EventLoop
 public:
 	std::string eventToString(const SDL_Event& event);
 	EventLoopState loop();
+	SDL_Event last_event;
+
 };
 
 }
