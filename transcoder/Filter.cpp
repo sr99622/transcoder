@@ -9,8 +9,10 @@ av::Filter::Filter(const Decoder& decoder, const char* description, Queue<Frame>
     AVFilterInOut* outputs = avfilter_inout_alloc();
     AVFilterInOut* inputs = avfilter_inout_alloc();
     stream = decoder.stream;
-    AVRational time_base = decoder.stream->time_base;
+    time_base = decoder.stream->time_base;
     //enum AVPixelFormat pix_fmts[] = { AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE };
+    std::cout << "time base: " << time_base.num << " / " << time_base.den << std::endl;
+    std::cout << "avg_frame_rate: " << stream->avg_frame_rate.num << " / " << stream->avg_frame_rate.den << std::endl;
 
     snprintf(args, sizeof(args),
         "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
@@ -43,6 +45,22 @@ av::Filter::Filter(const Decoder& decoder, const char* description, Queue<Frame>
             std::stringstream str;
             str << "name: " << filter->name << " type: " << filter->filter->name;
             ex.msg(str.str());
+
+            if (!strcmp(filter->filter->name, "fps")) {
+                ex.msg("fps conversion");
+                std::size_t start = std::string(description).find("fps=");
+                std::size_t end = std::string(description).find(",", start);
+                std::string fps_arg = std::string(description).substr(start + 4, end);
+                ex.msg(fps_arg + "  fps_arg: ");
+                int fps = std::stoi(fps_arg);
+                std::cout << "FPS: " << fps << std::endl;
+                double factor = av_q2d(stream->time_base)* av_q2d(stream->avg_frame_rate);
+                int time_base_den = fps / factor;
+                std::cout << "factor: " << time_base_den << std::endl;
+                time_base = av_make_q(1, fps);
+                //stream->avg_frame_rate = av_make_q(fps, 1);
+            }
+
         }
 
     }
@@ -74,7 +92,11 @@ int av::Filter::filter(const Frame& f)
                 throw Exception("av_buffersink_get_frame");
 
             tmp = Frame(frame);
-            tmp.set_rts(stream);
+            //tmp.set_rts(stream);
+
+            double factor = 1000 * av_q2d(time_base);
+            tmp.m_rts = (tmp.pts()) * factor;
+
             frame_out_q->push(tmp);
             av_frame_unref(frame);
         }

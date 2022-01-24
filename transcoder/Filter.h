@@ -3,6 +3,7 @@
 extern "C" {
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
+#include <libavfilter/avfilter.h>
 }
 
 #include "Exception.h"
@@ -27,6 +28,7 @@ public:
 	AVStream* stream;
 	Queue<Frame>* frame_out_q;
 	ExceptionHandler ex;
+	AVRational time_base;
 
 };
 

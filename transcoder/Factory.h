@@ -11,6 +11,7 @@
 #include "FileWriter.h"
 #include "Queue.h"
 #include "Darknet.h"
+#include "PyModelSSD.h"
 
 #define SDL_MAIN_HANDLED
 
@@ -253,7 +254,7 @@ public:
                 frame_q->pop(f);
                 if (f.isValid()) {
                     detector->detect(&f);
-                    std::cout << "size: " << f.detections.size() << std::endl;
+                    //std::cout << "size: " << f.detections.size() << std::endl;
                     for (int i = 0; i < f.detections.size(); i++)
                         f.drawBox(f.detections[i]);
 
@@ -267,6 +268,38 @@ public:
         }
         catch (const QueueClosedException& e) {}
         msg("detect loop end");
+    }
+
+    static int py_detect(Queue<Frame>* frame_out_q, Queue<Frame>* frame_in_q)
+    {
+        try {
+            PyModelSSD model("ssd_mobilenet_v2_320x320_coco17_tpu-8/saved_model", frame_out_q, 50);
+            if (!PyArray_API) import_array();
+            if (PyErr_Occurred()) throw Exception("PyErr_Occurred");
+
+            Frame f;
+            while (true)
+            {
+                frame_in_q->pop(f);
+                if (f.isValid()) {
+                    std::vector<av::Box<int>> boxes;
+                    
+                    model.detect(f.mat(), &boxes);
+                    for (int i = 0; i < boxes.size(); i++) {
+                        f.detections.push_back(boxes[i].to_bbox());
+                        f.drawBox(boxes[i].to_bbox());
+                    }
+                    
+                    frame_out_q->push(f);
+                }
+                else {
+                    frame_out_q->push(Frame(nullptr));
+                }
+            }
+        }
+        catch (const QueueClosedException& e) {}
+        catch (const Exception& e) { msg(e.what(), MsgPriority::CRITICAL, "py_detect "); }
+        msg("py_detect loop end");
     }
 };
 

@@ -3,6 +3,7 @@
 #include "Exception.h"
 #include <opencv2/opencv.hpp>
 #include "yolo_v2_class.hpp"
+#include "Box.h"
 
 namespace av
 {

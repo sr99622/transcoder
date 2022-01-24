@@ -27,6 +27,7 @@ void av::Encoder::close()
     if (pkt)           av_packet_free(&pkt);
     if (hw_frame)      av_frame_free(&hw_frame);
     if (hw_device_ctx) av_buffer_unref(&hw_device_ctx);
+    if (cvt_frame)     av_frame_free(&cvt_frame);
 }
 
 void av::Encoder::openVideoStream(void* parent, const StreamParameters & params, Queue<AVPacket*>*pkt_q)
@@ -61,6 +62,16 @@ void av::Encoder::openVideoStream(void* parent, const StreamParameters & params,
         stream->time_base = av_make_q(1, params.frame_rate);
         enc_ctx->time_base = stream->time_base;
         enc_ctx->gop_size = params.gop_size;
+
+        ex.ck(sws_ctx = sws_getContext(enc_ctx->width, enc_ctx->height, AV_PIX_FMT_BGRA,
+            enc_ctx->width, enc_ctx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL), CmdTag::SGC);
+
+        cvt_frame = av_frame_alloc();
+        cvt_frame->width = enc_ctx->width;
+        cvt_frame->height = enc_ctx->height;
+        cvt_frame->format = AV_PIX_FMT_YUV420P;
+        av_frame_get_buffer(cvt_frame, 0);
+        av_frame_make_writable(cvt_frame);
 
         if (hw_device_type != AV_HWDEVICE_TYPE_NONE) {
             enc_ctx->pix_fmt = params.hw_pix_fmt;
@@ -165,6 +176,15 @@ int av::Encoder::encode(AVFrame* frame)
     try {
 
         //if (!frame) av.msg("encoder recieved NULL frame eof", MsgPriority::INFO);
+
+        if (frame) {
+            if (frame->format == AV_PIX_FMT_BGRA) {
+                ex.ck(sws_scale(sws_ctx, frame->data, frame->linesize, 0, enc_ctx->height,
+                    cvt_frame->data, cvt_frame->linesize), CmdTag::SS);
+                cvt_frame->pts = frame->pts;
+                frame = cvt_frame;
+            }
+        }
 
         if (hw_device_type != AV_HWDEVICE_TYPE_NONE) {
             if (frame) {

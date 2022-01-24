@@ -81,8 +81,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(CONTRIB_PATH)\include;$(CONTRIB_PATH)\include\SDL;$(CONTRIB_PATH)\include\darknet;$(IncludePath)</IncludePath>
-    <LibraryPath>$(CONTRIB_PATH)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(PYTHON_PATH)\include;$(NUMPY_PATH)\include;$(CONTRIB_PATH)\include;$(CONTRIB_PATH)\include\SDL;$(CONTRIB_PATH)\include\darknet;$(IncludePath)</IncludePath>
+    <LibraryPath>$(PYTHON_PATH)\libs;$(CONTRIB_PATH)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -155,12 +155,15 @@
     <ClCompile Include="FileWriter.cpp" />
     <ClCompile Include="Filter.cpp" />
     <ClCompile Include="Frame.cpp" />
+    <ClCompile Include="PyModelSSD.cpp" />
     <ClCompile Include="StreamParameters.cpp" />
     <ClCompile Include="transcoder.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Box.h" />
     <ClInclude Include="Darknet.h" />
     <ClInclude Include="Exception.h" />
+    <ClInclude Include="PyModelSSD.h" />
     <ClInclude Include="Queue.h" />
     <ClInclude Include="Clock.h" />
     <ClInclude Include="Decoder.h" />
@@ -173,6 +176,9 @@
     <ClInclude Include="Frame.h" />
     <ClInclude Include="Factory.h" />
     <ClInclude Include="StreamParameters.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\x64\Release\model.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

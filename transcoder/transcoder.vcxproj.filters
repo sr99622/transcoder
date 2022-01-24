@@ -54,6 +54,9 @@
     <ClCompile Include="Darknet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PyModelSSD.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Queue.h">
@@ -98,5 +101,16 @@
     <ClInclude Include="Darknet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PyModelSSD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Box.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\x64\Release\model.py">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

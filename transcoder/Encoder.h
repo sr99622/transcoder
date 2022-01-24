@@ -37,6 +37,8 @@ public:
     AVStream* stream = NULL;
     AVCodecContext* enc_ctx = NULL;
     AVPacket* pkt = NULL;
+    SwsContext* sws_ctx = NULL;
+    AVFrame* cvt_frame;
 
     AVHWDeviceType hw_device_type = AV_HWDEVICE_TYPE_NONE;
     AVBufferRef* hw_frames_ref = NULL;

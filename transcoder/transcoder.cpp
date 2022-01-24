@@ -47,7 +47,7 @@ int test(int argc, char** argv)
     params.height = 720;
     params.frame_rate = 25;
     params.video_time_base = av_make_q(1, params.frame_rate);
-    params.video_bit_rate = 1200000;
+    params.video_bit_rate = 120000000;
     params.gop_size = 12;
     params.sample_fmt = AV_SAMPLE_FMT_FLTP;
     params.audio_bit_rate = 64000;
@@ -62,12 +62,14 @@ int test(int argc, char** argv)
     std::string cfg = "C:/Users/sr996/models/reduced/ami1/yolov4.cfg";
     std::string weights = "C:/Users/sr996/models/reduced/ami1/yolov4.weights";
     std::string names = "C:/Users/sr996/models/reduced/ami1/coco.names";
+    const char* model_dir = "C:/Users/sr996/Downloads/ssd_mobilenet_v2_320x320_coco17_tpu-8/saved_model";
 
-    bool use_encoder = false;
-    bool use_hardware = false;
+    bool use_encoder = true;
+    bool use_hardware = true;
 
     bool use_filter = true;
-    bool use_detector = true;
+    bool use_yo_detector = false;
+    bool use_py_detector = true;
 
     if (use_hardware) {
         params.hw_device_type = AV_HWDEVICE_TYPE_CUDA;
@@ -77,6 +79,7 @@ int test(int argc, char** argv)
     }
 
     av::Factory avf;
+    av::FrameQueueMonitor fqm;
 
     const char* src_filename = argv[1];
     av::FileReader reader(src_filename, avf.msg);
@@ -84,8 +87,8 @@ int test(int argc, char** argv)
     av::Queue<AVPacket*> vpq_reader(10);
     av::Queue<AVPacket*> apq_reader(10);
 
-    av::FrameQueueMonitor fqm(true, true);
     av::Queue<av::Frame> vfq_decoder(10);
+    //av::Queue<av::Frame> vfq_decoder(10, "IN ", fqm.mntrAction, nullptr, avf.msgOut);
     av::Queue<av::Frame> afq_decoder(10);
 
     av::Decoder video_decoder(reader.fmt_ctx, reader.video_stream_index, &vfq_decoder, avf.msg, hw_dev_type);
@@ -98,22 +101,37 @@ int test(int argc, char** argv)
 
     std::thread video_filtering;
     av::Queue<av::Frame> vfq_filter(10);
+    //av::Queue<av::Frame> vfq_filter(10, "OUT", fqm.mntrAction, nullptr, avf.msgOut);
     av::Filter video_filter(video_decoder, cmd, &vfq_filter);
 
     if (use_filter)
         video_filtering = std::thread(avf.filter, &video_filter, &vfq_decoder);
 
-    std::thread detecting;
+    std::thread py_detecting;
     av::Queue<av::Frame> vfq_detector(10);
-    av::Darknet detector(cfg, weights, names, &vfq_detector);
+    std::thread yo_detecting;
+    av::Darknet yo_detector;
 
-    if (use_detector) {
+    if (use_py_detector && use_yo_detector)
+        avf.msg("ERROR CANNOT USE BOTH YOLO AND PY SSD DETECTOR AT THE SAME TIME");
+
+    if (use_py_detector) {
         if (use_filter)
-            detecting = std::thread(avf.detect, &detector, &vfq_filter);
+            py_detecting = std::thread(avf.py_detect, &vfq_detector, &vfq_filter);
         else
-            detecting = std::thread(avf.detect, &detector, &vfq_decoder);
+            py_detecting = std::thread(avf.py_detect, &vfq_detector, &vfq_decoder);
     }
-    
+
+    if (use_yo_detector) {
+
+        yo_detector = av::Darknet(cfg, weights, names, &vfq_detector);
+
+        if (use_filter)
+            yo_detecting = std::thread(avf.detect, &yo_detector, &vfq_filter);
+        else
+            yo_detecting = std::thread(avf.detect, &yo_detector, &vfq_decoder);
+    }
+
     av::Queue<av::Frame> vfq_display(10);
     av::Queue<av::Frame> afq_display(10);
 
@@ -129,7 +147,7 @@ int test(int argc, char** argv)
 
     if (use_encoder) {
 
-        if (use_detector) {
+        if (use_yo_detector || use_py_detector) {
             display.video_in_q = &vfq_detector;
         }
         else {
@@ -138,7 +156,6 @@ int test(int argc, char** argv)
             else
                 display.video_in_q = &vfq_decoder;
         }
-
 
         display.audio_in_q = &afq_decoder;
         display.video_out_q = &vfq_display;
@@ -150,8 +167,7 @@ int test(int argc, char** argv)
     }
     else {
 
-        if (use_detector) {
-            std::cout << "display.video_in_q = &vfq_detector;" << std::endl;
+        if (use_yo_detector || use_py_detector) {
             display.video_in_q = &vfq_detector;
         }
         else {
@@ -193,10 +209,9 @@ int test(int argc, char** argv)
     if (use_filter)
         vfq_filter.close();
 
-    if (use_detector) {
-        std::cout << "vfq_detector.close" << std::endl;
+    if (use_yo_detector || use_py_detector) 
         vfq_detector.close();
-    }
+
 
     if (use_encoder) {
         vfq_display.push(av::Frame(nullptr));
@@ -210,8 +225,11 @@ int test(int argc, char** argv)
     if (use_filter)
         video_filtering.join();
 
-    if (use_detector)
-        detecting.join();
+    if (use_yo_detector)
+        yo_detecting.join();
+
+    if (use_py_detector)
+        py_detecting.join();
 
     if (use_encoder) {
         video_encoding.join();
@@ -227,8 +245,22 @@ int test(int argc, char** argv)
 }
 int main(int argc, char** argv)
 {
+    /*
+    Py_Initialize();
+    import_array();
+    if (PyErr_Occurred())
+        std::cout << "PyErr" << std::endl;
+
+    if (Py_IsInitialized())
+        std::cout << "PYTHON INITIALIZED" << std::endl;
+    else
+        std::cout << "PYTHON NOT INITIALIZED" << std::endl;
+    */
+
+
     return test(argc, argv);
 
+    //Py_Finalize();
 }
 
 

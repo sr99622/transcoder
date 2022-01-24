@@ -21,7 +21,7 @@ public:
 		Queue<Frame>* frame_out_q
 	);
 
-	~Darknet() { delete detector; }
+	~Darknet() { /*if (detector) delete detector;*/ }
 
 	void detect(Frame* f);
 
@@ -31,7 +31,7 @@ public:
 
 	Queue<Frame>* frame_out_q;
 
-	Detector* detector;
+	Detector* detector = nullptr;
 	std::vector<bbox_t> detections;
 };
 

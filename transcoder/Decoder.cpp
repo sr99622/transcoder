@@ -124,22 +124,23 @@ int av::Decoder::decode(AVPacket* pkt)
                 }
             }
 
-            Frame tmp;
+            Frame f;
             if (frame->format == hw_pix_fmt) {
                 ex.ck(ret = av_hwframe_transfer_data(sw_frame, frame, 0), CmdTag::AHTD);
                 ex.ck(av_frame_copy_props(sw_frame, frame));
                 ex.ck(sws_scale(sws_ctx, sw_frame->data, sw_frame->linesize, 0, dec_ctx->height, 
                     cvt_frame->data, cvt_frame->linesize), CmdTag::SS);
                 cvt_frame->pts = sw_frame->pts;
-                tmp = Frame(cvt_frame);
+                f = Frame(cvt_frame);
             }
             else {
-                tmp = Frame(frame);
+                f = Frame(frame);
             }
 
-            //int size = dec_ctx->gop_size;
-            tmp.set_rts(stream);
-            frame_q->push(tmp);
+            int size = dec_ctx->gop_size;
+            f.m_frame->display_picture_number = dec_ctx->frame_number;
+            f.set_rts(stream);
+            frame_q->push(f);
         }
     }
     catch (const Exception& e) {

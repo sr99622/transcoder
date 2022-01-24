@@ -1,4 +1,5 @@
 #include "FileReader.h"
+#include <iomanip>
 
 av::FileReader::FileReader(const char* filename, std::function<void(const std::string&, MsgPriority, const std::string&)> fnMsg)
 {
@@ -48,3 +49,21 @@ AVPacket* av::FileReader::read()
 
     return pkt;
 }
+
+
+
+/*
+if (pkt->stream_index == video_stream_index) {
+    char buf[16];
+    std::stringstream str;
+    str << "  PKT HEADER: ";
+    for (int i = 0; i < 12; i++) {
+        sprintf(buf, "%02x", (int)pkt->data[i] & 0x1F);
+        //sprintf(buf, "%02x", 0x67 & 0x1F);
+        str << " " << buf;
+    }
+    str << " SIZE: " << pkt->size;
+    ex.msg(str.str());
+}
+*/
+

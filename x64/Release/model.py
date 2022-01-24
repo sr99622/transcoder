@@ -43,7 +43,6 @@ class Model:
         mask = detection_classes == 1
         detection_boxes = detection_boxes[mask]
         detection_scores = detection_scores[mask]
-        #print('detection scores: \n', detection_scores)
         mask = detection_scores > self.threshold
         detection_boxes = detection_boxes[mask]
 
