@@ -31,7 +31,7 @@ public:
 
 	AVFrame* m_frame = NULL;
 	uint64_t m_rts;
-	std::vector<bbox_t> detections;
+	std::vector<bbox_t> m_detections;
 	bool show = false;
 
 };

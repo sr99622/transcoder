@@ -64,12 +64,13 @@ int test(int argc, char** argv)
     std::string names = "C:/Users/sr996/models/reduced/ami1/coco.names";
     const char* model_dir = "C:/Users/sr996/Downloads/ssd_mobilenet_v2_320x320_coco17_tpu-8/saved_model";
 
-    bool use_encoder = true;
-    bool use_hardware = true;
+    bool use_encoder = false;
+    bool use_hardware = false;
 
     bool use_filter = true;
-    bool use_yo_detector = false;
-    bool use_py_detector = true;
+    bool use_yo_detector = true;
+    bool use_py_detector = false;
+    bool use_tracker = true;
 
     if (use_hardware) {
         params.hw_device_type = AV_HWDEVICE_TYPE_CUDA;
@@ -132,6 +133,13 @@ int test(int argc, char** argv)
             yo_detecting = std::thread(avf.detect, &yo_detector, &vfq_decoder);
     }
 
+    std::thread tracking;
+    av::Queue<av::Frame> vfq_tracker(10);
+
+    if (use_tracker) {
+        tracking = std::thread(avf.track, &vfq_tracker, &vfq_detector);
+    }
+
     av::Queue<av::Frame> vfq_display(10);
     av::Queue<av::Frame> afq_display(10);
 
@@ -148,7 +156,10 @@ int test(int argc, char** argv)
     if (use_encoder) {
 
         if (use_yo_detector || use_py_detector) {
-            display.video_in_q = &vfq_detector;
+            if (use_tracker)
+                display.video_in_q = &vfq_tracker;
+            else
+                display.video_in_q = &vfq_detector;
         }
         else {
             if (use_filter)
@@ -168,7 +179,10 @@ int test(int argc, char** argv)
     else {
 
         if (use_yo_detector || use_py_detector) {
-            display.video_in_q = &vfq_detector;
+            if (use_tracker)
+                display.video_in_q = &vfq_tracker;
+            else
+                display.video_in_q = &vfq_detector;
         }
         else {
             if (use_filter)
@@ -212,6 +226,8 @@ int test(int argc, char** argv)
     if (use_yo_detector || use_py_detector) 
         vfq_detector.close();
 
+    if (use_tracker)
+        vfq_tracker.close();
 
     if (use_encoder) {
         vfq_display.push(av::Frame(nullptr));
@@ -230,6 +246,9 @@ int test(int argc, char** argv)
 
     if (use_py_detector)
         py_detecting.join();
+
+    if (use_tracker)
+        tracking.join();
 
     if (use_encoder) {
         video_encoding.join();

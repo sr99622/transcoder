@@ -10,13 +10,13 @@ PyModelSSD::PyModelSSD
 	try {
 		if (!Py_IsInitialized()) throw av::Exception("Python not initialized");
 
-		CPyObject pName = PyUnicode_FromString("model");		if (!pName) throw av::Exception("pName");
-		CPyObject pModule = PyImport_Import(pName);		        if (!pModule) throw av::Exception("pModule");
-		CPyObject pDict = PyModule_GetDict(pModule);		    if (!pDict) throw av::Exception("pDict");
-		CPyObject pItem = PyDict_GetItemString(pDict, "Model");	if (!pItem) throw av::Exception("pItem");
+		CPyObject pName = PyUnicode_FromString("model");        if (!pName) throw av::Exception("pName");
+		CPyObject pModule = PyImport_Import(pName);             if (!pModule) throw av::Exception("pModule");
+		CPyObject pDict = PyModule_GetDict(pModule);            if (!pDict) throw av::Exception("pDict");
+		CPyObject pItem = PyDict_GetItemString(pDict, "Model"); if (!pItem) throw av::Exception("pItem");
 		pClass = PyObject_CallObject(pItem, NULL);              if (!pClass) throw av::Exception("pClass");
 
-		if (! PyObject_CallMethod(pClass, "set_threshold", "(i)", threshold)) throw av::Exception("pCallHandle2");
+		if (! PyObject_CallMethod(pClass, "set_threshold", "(i)", threshold))    throw av::Exception("pCallHandle2");
 		if (! PyObject_CallMethod(pClass, "initialize_model", "(s)", model_dir)) throw av::Exception("pCallHandle1");
 	}
 	catch (const av::Exception& e) {

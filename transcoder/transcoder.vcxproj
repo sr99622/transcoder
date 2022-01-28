@@ -145,6 +145,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Darknet.cpp" />
+    <ClCompile Include="DeepSort.cpp" />
     <ClCompile Include="Exception.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="Decoder.cpp" />
@@ -162,6 +163,7 @@
   <ItemGroup>
     <ClInclude Include="Box.h" />
     <ClInclude Include="Darknet.h" />
+    <ClInclude Include="DeepSort.h" />
     <ClInclude Include="Exception.h" />
     <ClInclude Include="PyModelSSD.h" />
     <ClInclude Include="Queue.h" />

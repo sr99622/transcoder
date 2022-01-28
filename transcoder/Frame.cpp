@@ -13,14 +13,16 @@ av::Frame::Frame() :
 
 av::Frame::Frame(const Frame& other) : 
 	m_frame(copyFrame(other.m_frame)), 
-	m_rts(other.m_rts)
+	m_rts(other.m_rts),
+	m_detections(other.m_detections)
 {
 	if (show) std::cout << "copy constructor" << std::endl;
 }
 
 av::Frame::Frame(Frame&& other) noexcept :
 	m_frame(copyFrame(other.m_frame)),
-	m_rts(other.m_rts)
+	m_rts(other.m_rts),
+	m_detections(other.m_detections)
 {
 	if (show) std::cout << "move copy constructor" << std::endl;
 }
@@ -33,7 +35,8 @@ av::Frame::Frame(AVFrame* src)
 
 av::Frame::~Frame() 
 { 
-	av_frame_free(&m_frame); 
+	av_frame_free(&m_frame);
+	m_detections.clear();
 	if (show) std::cout << "destructor" << std::endl;
 }
 
@@ -43,6 +46,7 @@ av::Frame& av::Frame::operator=(const Frame& other)
 	if (other.isValid()) {
 		if (show) std::cout << "assignment operator new tmp" << std::endl;
 		m_rts = other.m_rts;
+		m_detections = other.m_detections;
 		av_frame_free(&m_frame);
 		m_frame = av_frame_clone(other.m_frame);
 		av_frame_make_writable(m_frame);
@@ -62,6 +66,7 @@ av::Frame& av::Frame::operator=(Frame&& other) noexcept
 		m_rts = other.m_rts;
 		av_frame_free(&m_frame);
 		m_frame = other.m_frame;
+		m_detections = other.m_detections;
 		av_frame_make_writable(m_frame);
 		other.m_frame = NULL;
 	}

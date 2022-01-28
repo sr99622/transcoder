@@ -17,5 +17,5 @@ av::Darknet::Darknet
 
 void av::Darknet::detect(Frame* f)
 {
-	f->detections = detector->detect(f->mat());
+	f->m_detections = detector->detect(f->mat());
 }

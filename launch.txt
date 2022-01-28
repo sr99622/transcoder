@@ -1,0 +1,4 @@
+activate tf
+set PYTHONHOME=%PYTHON_PATH%
+cd source\repos\transcoder\x64\Release
+transcoder C:\Users\sr996\Videos\times_square.mp4 cuda scale=1280x720,format=bgr24

@@ -12,6 +12,7 @@
 #include "Queue.h"
 #include "Darknet.h"
 #include "PyModelSSD.h"
+#include "DeepSort.h"
 
 #define SDL_MAIN_HANDLED
 
@@ -255,8 +256,8 @@ public:
                 if (f.isValid()) {
                     detector->detect(&f);
                     //std::cout << "size: " << f.detections.size() << std::endl;
-                    for (int i = 0; i < f.detections.size(); i++)
-                        f.drawBox(f.detections[i]);
+                    for (int i = 0; i < f.m_detections.size(); i++)
+                        f.drawBox(f.m_detections[i]);
 
                     detector->frame_out_q->push(f);
                 }
@@ -286,7 +287,7 @@ public:
                     
                     model.detect(f.mat(), &boxes);
                     for (int i = 0; i < boxes.size(); i++) {
-                        f.detections.push_back(boxes[i].to_bbox());
+                        f.m_detections.push_back(boxes[i].to_bbox());
                         f.drawBox(boxes[i].to_bbox());
                     }
                     
@@ -301,6 +302,36 @@ public:
         catch (const Exception& e) { msg(e.what(), MsgPriority::CRITICAL, "py_detect "); }
         msg("py_detect loop end");
     }
+
+    static int track(Queue<Frame>* frame_out_q, Queue<Frame>* frame_in_q)
+    {
+        try {
+            const char* model_dir = "C:/Users/sr996/source/repos/deep_sort_v2/saved_model";
+            const char* python_dir = "C:/Users/sr996/source/repos/deep_sort_v2";
+            DeepSort tracker(model_dir, python_dir, frame_out_q);
+            if (!PyArray_API) import_array();
+            if (PyErr_Occurred()) throw Exception("PyErr_Occurred");
+
+            Frame f;
+            while (true)
+            {
+                frame_in_q->pop(f);
+                if (f.isValid()) {
+                    std::vector<av::Box<float>> boxes;
+                    for (const bbox_t& detection : f.m_detections)
+                        boxes.push_back(av::Box<float>(detection));
+
+                    tracker.track(f.mat(), boxes);
+
+                }
+                frame_out_q->push(f);
+            }
+        }
+        catch (const QueueClosedException& e) {}
+        catch (const Exception& e) { msg(e.what(), MsgPriority::CRITICAL, "track "); }
+        msg("track loop end");
+    }
+
 };
 
 }

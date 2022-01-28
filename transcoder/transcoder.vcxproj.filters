@@ -57,6 +57,9 @@
     <ClCompile Include="PyModelSSD.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DeepSort.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Queue.h">
@@ -105,6 +108,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Box.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DeepSort.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -3,6 +3,10 @@
 #define PY_ARRAY_UNIQUE_SYMBOL AVFACTORY_ARRAY_API
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
+#include <vector>
 #include <Python.h>
 #include "pyhelper.h"
 #include <opencv2/opencv.hpp>
@@ -12,14 +16,17 @@
 #include "Frame.h"
 #include "Exception.h"
 
-class PyModelSSD
+namespace av
+{
+
+class DeepSort
 {
 public:
-	PyModelSSD() {}
-	PyModelSSD(const char* model_dir, av::Queue<av::Frame>* frame_out_q, int threshold = 20);
-	void setThreshold(int threshold);
-	void detect(const cv::Mat& image, std::vector<av::Box<int>>* boxes);
+	DeepSort() {}
+	DeepSort(const char* model_dir, const char* python_dir, av::Queue<av::Frame>* frame_out_q);
 	CPyObject getImage(const cv::Mat& image);
+	CPyObject getDetections(const std::vector<av::Box<float>>& boxes, float* buffer);
+	void track(const cv::Mat& image, const std::vector<av::Box<float>>& dets);
 
 	CPyInstance pyInstance;
 	CPyObject pClass;
@@ -28,3 +35,4 @@ public:
 	av::ExceptionHandler ex;
 };
 
+}
