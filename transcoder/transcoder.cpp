@@ -43,8 +43,8 @@ int test(int argc, char** argv)
     params.format = "mp4";
     params.video_codec_name = "h264";
     params.pix_fmt = AV_PIX_FMT_YUV420P;
-    params.width = 1280;
-    params.height = 720;
+    params.width = 1920;
+    params.height = 1080;
     params.frame_rate = 25;
     params.video_time_base = av_make_q(1, params.frame_rate);
     params.video_bit_rate = 120000000;
@@ -64,8 +64,8 @@ int test(int argc, char** argv)
     std::string names = "C:/Users/sr996/models/reduced/ami1/coco.names";
     const char* model_dir = "C:/Users/sr996/Downloads/ssd_mobilenet_v2_320x320_coco17_tpu-8/saved_model";
 
-    bool use_encoder = false;
-    bool use_hardware = false;
+    bool use_encoder = true;
+    bool use_hardware = true;
 
     bool use_filter = true;
     bool use_yo_detector = true;

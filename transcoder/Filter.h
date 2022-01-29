@@ -29,6 +29,7 @@ public:
 	Queue<Frame>* frame_out_q;
 	ExceptionHandler ex;
 	AVRational time_base;
+	AVPixelFormat format;
 
 };
 

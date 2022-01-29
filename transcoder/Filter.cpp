@@ -61,6 +61,14 @@ av::Filter::Filter(const Decoder& decoder, const char* description, Queue<Frame>
                 //stream->avg_frame_rate = av_make_q(fps, 1);
             }
 
+            if (!strcmp(filter->filter->name, "format")) {
+                ex.msg("format conversion");
+                std::size_t start = std::string(description).find("format=");
+                std::size_t end = std::string(description).find(",", start);
+                std::string format_arg = std::string(description).substr(start + 7, end);
+                ex.msg(format_arg + "  fps_arg: ");
+            }
+
         }
 
     }

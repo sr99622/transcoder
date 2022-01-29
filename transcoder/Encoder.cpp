@@ -63,9 +63,6 @@ void av::Encoder::openVideoStream(void* parent, const StreamParameters & params,
         enc_ctx->time_base = stream->time_base;
         enc_ctx->gop_size = params.gop_size;
 
-        ex.ck(sws_ctx = sws_getContext(enc_ctx->width, enc_ctx->height, AV_PIX_FMT_BGRA,
-            enc_ctx->width, enc_ctx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL), CmdTag::SGC);
-
         cvt_frame = av_frame_alloc();
         cvt_frame->width = enc_ctx->width;
         cvt_frame->height = enc_ctx->height;
@@ -164,21 +161,30 @@ void av::Encoder::openAudioStream(void* parent, const StreamParameters& params, 
 
 int av::Encoder::encode(Frame& f)
 {
-    f.set_pts(stream);
-    //std::cout << f.description() << std::endl;
-
-    return encode(f.m_frame);
-}
-
-int av::Encoder::encode(AVFrame* frame)
-{
     int ret = 0;
     try {
 
-        //if (!frame) av.msg("encoder recieved NULL frame eof", MsgPriority::INFO);
+        f.set_pts(stream);
+
+        if (!sws_ctx) {
+            if (f.mediaType() == AVMEDIA_TYPE_VIDEO) {
+                std::stringstream str;
+                str << "Encoder input frame width: " << f.m_frame->width << " height: " << f.m_frame->height;
+                const char* pix_fmt_name = av_get_pix_fmt_name((AVPixelFormat)f.m_frame->format);
+                str << " format: " << (pix_fmt_name ? pix_fmt_name : "NULL");
+                ex.msg(str.str(), MsgPriority::INFO);
+
+                ex.ck(sws_ctx = sws_getContext(f.m_frame->width, f.m_frame->height, (AVPixelFormat)f.m_frame->format,
+                    enc_ctx->width, enc_ctx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL), CmdTag::SGC);
+
+            }
+        }
+
+        AVFrame* frame = f.m_frame;
 
         if (frame) {
-            if (frame->format == AV_PIX_FMT_BGRA) {
+
+            if (f.mediaType() == AVMEDIA_TYPE_VIDEO && frame->format != AV_PIX_FMT_YUV420P) {
                 ex.ck(sws_scale(sws_ctx, frame->data, frame->linesize, 0, enc_ctx->height,
                     cvt_frame->data, cvt_frame->linesize), CmdTag::SS);
                 cvt_frame->pts = frame->pts;
@@ -190,8 +196,11 @@ int av::Encoder::encode(AVFrame* frame)
             if (frame) {
                 av_frame_copy_props(hw_frame, frame);
                 ex.ck(av_hwframe_transfer_data(hw_frame, frame, 0), CmdTag::AHTD);
+                ex.ck(avcodec_send_frame(enc_ctx, hw_frame), CmdTag::ASF);
             }
-            ex.ck(avcodec_send_frame(enc_ctx, hw_frame), CmdTag::ASF);
+            else {
+                ex.ck(avcodec_send_frame(enc_ctx, NULL), CmdTag::ASF);
+            }
         }
         else {
             ex.ck(avcodec_send_frame(enc_ctx, frame), CmdTag::ASF);

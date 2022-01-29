@@ -28,7 +28,7 @@ public:
     void openVideoStream(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q);
     void openAudioStream(void* parent, const StreamParameters& params, Queue<AVPacket*>* pkt_q);
     int encode(Frame& f);
-    int encode(AVFrame* frame);
+    //int encode(AVFrame* frame);
     void close();
 
     AVMediaType media_type;
